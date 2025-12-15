@@ -1,0 +1,73 @@
+from dotenv import load_dotenv
+from langchain.tools import tool
+from langchain.agents import create_agent
+from langchain_openai import ChatOpenAI
+
+load_dotenv()
+
+# Use OpenAI as the model 
+# use this when you want to control model parameters more finely
+model = ChatOpenAI(
+    model="gpt-4o-mini",          # Fast and cost-effective with great tool calling
+    temperature=0,                # Deterministic for agent use
+)
+
+# ---- Define specialized sub-agents ----
+# Research Agent: searches or retrieves information
+research_agent = create_agent(
+    model=model,
+    tools=[],
+    system_prompt="You are a research assistant. Provide detailed, factual information on any topic.",
+)
+
+# Let's expose this research agent over a tool
+@tool
+def call_research_agent(query: str) -> str:
+    """Call the research agent to gather information on a topic/query."""
+    print("========= 1. Planning to invoke research agent ============")
+    result = research_agent.invoke({
+        "messages": [{"role": "user", "content": query}]
+    })
+    return result["messages"][-1].content
+
+# Writing Agent: writes or summarizes content
+writing_agent = create_agent(
+    model=model,
+    tools=[],
+    system_prompt="You are a professional writer. Create clear, concise, and engaging content.",
+)
+
+# Lets expose this writing agent over a tool
+@tool
+def call_writing_agent(query: str) -> str:
+    """Call the writing agent to write or summarize content."""
+    print("========= 2. Planning to invoke writing agent ============")
+    result = writing_agent.invoke({
+        "messages": [{"role": "user", "content": query}]
+    })
+    return result["messages"][-1].content
+
+# ---- Define supervisor agent ----
+supervisor_agent = create_agent(
+    model=model,
+    tools=[call_research_agent, call_writing_agent],
+    system_prompt=(
+        "You are a supervisor agent. You coordinate tasks between specialized agents:\n"
+        "First ask the research agent to gather necessary information.\n"
+        "- Use call_research_agent for research and information gathering.\n"
+        "- Use call_writing_agent for writing, editing, or summarizing.\n"
+        "Delegate tasks to the appropriate agent and combine their outputs to answer the user."
+    ),
+)
+
+# ---- Run the multi-agent system ----
+if __name__ == "__main__":
+    user_task = "Research the benefits of Protein and write a 2-paragraph summary."
+    
+    print("========= 0. Planning to invoke supervisor agent ============")
+    result = supervisor_agent.invoke({
+        "messages": [{"role": "user", "content": user_task}]
+    })
+    
+    print("=== Supervisor's Final Response ===")
+    print(result["messages"][-1].content)
