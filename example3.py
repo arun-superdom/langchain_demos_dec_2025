@@ -21,14 +21,14 @@ def get_weather(city: str) -> str:
 
     return f"The current temperature in {city} is {temperature}°C."
 
-agent = create_agent(
+weather_agent = create_agent(
     model="gpt-4o-mini",
     tools=[get_weather],
     system_prompt="You are a helpful assistant",
 )
 
 # Run the agent
-result = agent.invoke(
+result = weather_agent.invoke(
     {"messages": [{"role": "user", "content": "what is the weather in Sydney?"}]}
 )
 
